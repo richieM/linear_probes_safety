@@ -49,10 +49,14 @@ def load_model(model_name: str = "google/gemma-2-2b", device: str = "auto"):
     if tokenizer.pad_token is None:
         tokenizer.pad_token = tokenizer.eos_token
 
-    print(f"Loading model: {model_name}  (bfloat16)")
+    # bfloat16 is ideal on NVIDIA (A100, H100) but can overflow on MPS (Apple Silicon),
+    # producing NaN activations. Use float32 on MPS/CPU for safety.
+    is_mps = (device == "mps") or (device == "auto" and not torch.cuda.is_available())
+    dtype = torch.float32 if is_mps else torch.bfloat16
+    print(f"Loading model: {model_name}  ({dtype})")
     model = AutoModelForCausalLM.from_pretrained(
         model_name,
-        torch_dtype=torch.bfloat16,
+        torch_dtype=dtype,
         device_map=device,
     )
     model.eval()

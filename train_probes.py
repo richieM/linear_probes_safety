@@ -23,8 +23,20 @@ from sklearn.preprocessing import StandardScaler
 
 def load_cached(path: str = "results/activations.npz"):
     data = np.load(path, allow_pickle=True)
+    activations = data["activations"]
+
+    # NaN values can occur from bfloat16 overflow on MPS (Apple Silicon).
+    # Replace with 0 — a neutral value that won't affect the probe direction.
+    n_nan = np.isnan(activations).sum()
+    if n_nan > 0:
+        print(f"  WARNING: {n_nan} NaN values in activations — replacing with 0.")
+        print(f"  ({n_nan / activations.size * 100:.3f}% of all values)")
+        print("  This is usually bfloat16 overflow on MPS. "
+              "Re-extract with float32 if >1% of values are NaN.")
+        activations = np.nan_to_num(activations, nan=0.0)
+
     return (
-        data["activations"],       # [n, n_layers, hidden_dim]
+        activations,               # [n, n_layers, hidden_dim]
         data["labels"],            # [n]
         data["splits"],            # [n]  dtype object/str
         data["baseline_scores"],   # [n]
