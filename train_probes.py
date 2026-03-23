@@ -29,17 +29,20 @@ def load_cached(path: str = "results/activations.npz"):
     # Replace with 0 — a neutral value that won't affect the probe direction.
     n_nan = np.isnan(activations).sum()
     if n_nan > 0:
-        print(f"  WARNING: {n_nan} NaN values in activations — replacing with 0.")
-        print(f"  ({n_nan / activations.size * 100:.3f}% of all values)")
-        print("  This is usually bfloat16 overflow on MPS. "
-              "Re-extract with float32 if >1% of values are NaN.")
+        pct = n_nan / activations.size * 100
+        print(f"  WARNING: {n_nan} NaN values in activations ({pct:.1f}% of all values).")
+        if pct > 1:
+            print("  !! Re-extraction required — results will be unreliable.")
         activations = np.nan_to_num(activations, nan=0.0)
 
+    baseline_scores = data["baseline_scores"]
+    baseline_scores = np.nan_to_num(baseline_scores.astype(np.float32), nan=0.5)
+
     return (
-        activations,               # [n, n_layers, hidden_dim]
-        data["labels"],            # [n]
-        data["splits"],            # [n]  dtype object/str
-        data["baseline_scores"],   # [n]
+        activations,       # [n, n_layers, hidden_dim]
+        data["labels"],    # [n]
+        data["splits"],    # [n]  dtype object/str
+        baseline_scores,   # [n]
     )
 
 
